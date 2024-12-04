@@ -1,24 +1,87 @@
 import 'package:flutter/material.dart';
-import 'selectService.dart';
+import 'package:http/http.dart' as http;
+import 'dart:convert';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class RegisterScreen extends StatefulWidget {
+  final String email;
+
+  RegisterScreen({required this.email});
+
   @override
   _RegisterScreenState createState() => _RegisterScreenState();
 }
 
 class _RegisterScreenState extends State<RegisterScreen> {
   final _formKey = GlobalKey<FormState>();
-  final _firstNameController = TextEditingController();
-  final _lastNameController = TextEditingController();
-  final _emailController = TextEditingController();
-  final _passwordController = TextEditingController();
+  final _currentPasswordController = TextEditingController();
+  final _newPasswordController = TextEditingController();
+  final _confirmPasswordController = TextEditingController();
+
+  // API URL for updating password
+  final String _apiUrl = 'http://10.0.2.2:3000/api/user/user';
+
+  String get email => widget.email;
+
+  @override
+  void initState() {
+    super.initState();// Load email from SharedPreferences
+  }
+
+  // Function to load email from SharedPreferences
+
+
+  // Function to handle password update
+  Future<void> _updatePassword() async {
+    final currentPassword = _currentPasswordController.text;
+    final newPassword = _newPasswordController.text;
+    final confirmPassword = _confirmPasswordController.text;
+
+    if (newPassword != confirmPassword) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('New password and confirm password do not match!')),
+      );
+      return;
+    }
+
+    try {
+      final response = await http.put(
+        Uri.parse(_apiUrl),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({
+          'email': email,
+          'currentPassword': currentPassword,
+          'confirmPassword': newPassword,
+        }),
+      );
+      print('RESP : ${response.body}');
+
+      if (response.statusCode == 200) {
+        final responseData = jsonDecode(response.body);
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(responseData['message'] ?? 'Password updated successfully!')),
+        );
+        Navigator.pop(context); // Navigate back to the previous screen
+      } else {
+        final responseData = jsonDecode(response.body);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(responseData['message'] ?? 'Error updating password.')),
+        );
+      }
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Failed to connect to the server: $e')),
+      );
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        backgroundColor: Theme.of(context).colorScheme.inversePrimary,
-        title: Text('Edit'),
+        backgroundColor: Colors.red[300],
+        title: Text('Update Password'),
       ),
       body: SingleChildScrollView(
         child: Padding(
@@ -30,87 +93,58 @@ class _RegisterScreenState extends State<RegisterScreen> {
               children: [
                 Image.asset(
                   'assets/profilepic.png', // Replace with your image asset path
-                  height: 150, // Adjust the height as needed
+                  height: 150,
                 ),
-                SizedBox(height: 16), // Add space between image and text
+                SizedBox(height: 16),
 
-
-                // First Name Text Field
-                TextFormField(
-                  controller: _firstNameController,
-                  decoration: InputDecoration(
-                    labelText: 'Name',
-                    border: OutlineInputBorder(),
-                  ),
-                  validator: (value) {
-                    if (value == null || value.isEmpty) {
-                      return 'Please enter your Name';
-                    }
-                    return null;
-                  },
-                ),
-                SizedBox(height: 16.0),
-
-                // Last Name Text Field
-                TextFormField(
-                  controller: _lastNameController,
-                  decoration: InputDecoration(
-                    labelText: 'Email',
-                    border: OutlineInputBorder(),
-                  ),
-                  validator: (value) {
-                    if (value == null || value.isEmpty) {
-                      return 'Please enter your Email';
-                    }
-                    return null;
-                  },
-                ),
-                SizedBox(height: 16.0),
+                // Display email
                 Text(
-                  'Change Password',
+                  email,
                   style: TextStyle(
                     fontSize: 24,
                     fontWeight: FontWeight.bold,
                   ),
                   textAlign: TextAlign.center,
                 ),
-                SizedBox(height: 20),
-                // Email Text Field
+                SizedBox(height: 16.0),
+
+                // Current Password Field
                 TextFormField(
-                  controller: _emailController,
+                  controller: _currentPasswordController,
                   decoration: InputDecoration(
                     labelText: 'Current Password',
                     border: OutlineInputBorder(),
                   ),
-                  keyboardType: TextInputType.emailAddress,
+                  obscureText: true,
                   validator: (value) {
                     if (value == null || value.isEmpty) {
-                      return 'Please enter your Current Password';
+                      return 'Please enter your current password';
                     }
                     return null;
                   },
                 ),
                 SizedBox(height: 16.0),
 
+                // New Password Field
                 TextFormField(
-                  controller: _emailController,
+                  controller: _newPasswordController,
                   decoration: InputDecoration(
                     labelText: 'New Password',
                     border: OutlineInputBorder(),
                   ),
-                  keyboardType: TextInputType.emailAddress,
+                  obscureText: true,
                   validator: (value) {
                     if (value == null || value.isEmpty) {
-                      return 'Please enter your New Password';
+                      return 'Please enter your new password';
                     }
                     return null;
                   },
                 ),
                 SizedBox(height: 16.0),
 
-                // Password Text Field
+                // Confirm New Password Field
                 TextFormField(
-                  controller: _passwordController,
+                  controller: _confirmPasswordController,
                   decoration: InputDecoration(
                     labelText: 'Confirm New Password',
                     border: OutlineInputBorder(),
@@ -118,25 +152,18 @@ class _RegisterScreenState extends State<RegisterScreen> {
                   obscureText: true,
                   validator: (value) {
                     if (value == null || value.isEmpty) {
-                      return 'Please enter Confirm New Password';
+                      return 'Please confirm your new password';
                     }
                     return null;
                   },
                 ),
                 SizedBox(height: 16.0),
 
-                // Register Button
+                // Update Password Button
                 ElevatedButton(
                   onPressed: () {
                     if (_formKey.currentState!.validate()) {
-                      // Perform registration action here
-                      final firstName = _firstNameController.text;
-                      final lastName = _lastNameController.text;
-                      final email = _emailController.text;
-                      final password = _passwordController.text;
-                      print('First Name: $firstName, Last Name: $lastName, Email: $email, Password: $password');
-                      Navigator.pop(context);
-                      // Navigate to another screen if registration is successful
+                      _updatePassword();
                     }
                   },
                   child: Text('Update Password'),
@@ -148,18 +175,15 @@ class _RegisterScreenState extends State<RegisterScreen> {
             ),
           ),
         ),
-      )
-
-
+      ),
     );
   }
 
   @override
   void dispose() {
-    _firstNameController.dispose();
-    _lastNameController.dispose();
-    _emailController.dispose();
-    _passwordController.dispose();
+    _currentPasswordController.dispose();
+    _newPasswordController.dispose();
+    _confirmPasswordController.dispose();
     super.dispose();
   }
 }

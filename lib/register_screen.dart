@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'user_type_screen.dart';
+
 
 class RegisterScreen extends StatelessWidget {
   @override
@@ -14,10 +14,6 @@ class RegisterScreen extends StatelessWidget {
           children: [
             ElevatedButton(
               onPressed: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (context) => UserTypeScreen()),
-                );
               },
               child: Text('Register'),
             ),
